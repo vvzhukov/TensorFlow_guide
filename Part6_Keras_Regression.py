@@ -169,8 +169,93 @@ plot_loss(history)
 
 test_results['linear_model'] = linear_model.evaluate(
     test_features.astype(np.int_), test_labels, verbose=0)
-# TODO Fix: Incompatible shapes: [32,9] vs. [1,10]
 
+# Deep neural network (DNN)
+
+# models will contain a few more layers than the linear model
+# normalization layer.
+# two hidden, non-linear, Dense layers with the ReLU (relu) activation function nonlinearity.
+# linear Dense single-output layer.
+
+def build_and_compile_model(norm):
+  model = keras.Sequential([
+      norm,
+      layers.Dense(64, activation='relu'),
+      layers.Dense(64, activation='relu'),
+      layers.Dense(1)
+  ])
+
+  model.compile(loss='mean_absolute_error',
+                optimizer=tf.keras.optimizers.Adam(0.001))
+  return model
+
+# Single input
+dnn_horsepower_model = build_and_compile_model(horsepower_normalizer)
+
+dnn_horsepower_model.summary()
+
+# train model
+history = dnn_horsepower_model.fit(
+    train_features['Horsepower'],
+    train_labels,
+    validation_split=0.2,
+    verbose=0, epochs=100)
+
+plot_loss(history)
+
+x = tf.linspace(0.0, 250, 251)
+y = dnn_horsepower_model.predict(x)
+
+plot_horsepower(x, y)
+
+test_results['dnn_horsepower_model'] = dnn_horsepower_model.evaluate(
+    test_features['Horsepower'], test_labels,
+    verbose=0)
+
+# Multiple inputs
+dnn_model = build_and_compile_model(normalizer)
+dnn_model.summary()
+
+
+history = dnn_model.fit(
+    train_features.astype(np.int_), # Unsupported object type int fix
+    train_labels,
+    validation_split=0.2,
+    verbose=0, epochs=100)
+
+plot_loss(history)
+
+test_results['dnn_model'] = dnn_model.evaluate(test_features.astype(np.int_), test_labels, verbose=0)
+
+# Test set performance
+pd.DataFrame(test_results, index=['Mean absolute error [MPG]']).T
+
+test_predictions = dnn_model.predict(test_features.astype(np.int_)).flatten()
+
+a = plt.axes(aspect='equal')
+plt.scatter(test_labels, test_predictions)
+plt.xlabel('True Values [MPG]')
+plt.ylabel('Predictions [MPG]')
+lims = [0, 50]
+plt.xlim(lims)
+plt.ylim(lims)
+_ = plt.plot(lims, lims)
+
+# Error distribution
+
+error = test_predictions - test_labels
+plt.hist(error, bins=25)
+plt.xlabel('Prediction Error [MPG]')
+_ = plt.ylabel('Count')
+
+# save and load model:
+dnn_model.save('dnn_model.keras')
+
+reloaded = tf.keras.models.load_model('dnn_model.keras')
+
+test_results['reloaded'] = reloaded.evaluate(test_features, test_labels, verbose=0)
+
+pd.DataFrame(test_results, index=['Mean absolute error [MPG]']).T
 
 
 # MIT License
