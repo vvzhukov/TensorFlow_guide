@@ -63,9 +63,9 @@ train_dataset.describe().transpose()[['mean', 'std']]
 normalizer = tf.keras.layers.Normalization(axis=-1)
 
 # Fit the state of the preprocessing layer to the data by calling Normalization.
-train_features.iloc[:,:1] = train_features.iloc[:,:1].astype(np.int_)
-# TODO fix normalizer input data type (Failed to convert a NumPy array to a Tensor)
-normalizer.adapt(np.array(train_features))
+
+# Fixed normalizer input data type (Failed to convert a NumPy array to a Tensor)
+normalizer.adapt(np.array(train_features).astype(np.int_))
 
 # Calculate the mean and variance, and store them in the layer
 print(normalizer.mean.numpy())
@@ -75,8 +75,101 @@ first = np.array(train_features[:1])
 with np.printoptions(precision=2, suppress=True):
   print('First example:', first)
   print()
-  print('Normalized:', normalizer(first).numpy())
+  print('Normalized:', normalizer(first.astype(np.int_)).numpy())
 
+
+# Linear regression
+horsepower = np.array(train_features['Horsepower'])
+
+horsepower_normalizer = layers.Normalization(input_shape=[1,], axis=None)
+horsepower_normalizer.adapt(horsepower)
+
+# Keras Sequential model
+horsepower_model = tf.keras.Sequential([
+    horsepower_normalizer,
+    layers.Dense(units=1)
+])
+
+horsepower_model.summary()
+
+horsepower_model.predict(horsepower[:10])
+#  configure the training procedure
+horsepower_model.compile(
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.1),
+    loss='mean_absolute_error')
+
+history = horsepower_model.fit(
+    train_features['Horsepower'],
+    train_labels,
+    epochs=100,
+    # Suppress logging.
+    verbose=0,
+    # Calculate validation results on 20% of the training data.
+    validation_split = 0.2)
+
+# Visualize the model's training progress
+hist = pd.DataFrame(history.history)
+hist['epoch'] = history.epoch
+hist.tail()
+
+def plot_loss(history):
+  plt.plot(history.history['loss'], label='loss')
+  plt.plot(history.history['val_loss'], label='val_loss')
+  plt.ylim([0, 10])
+  plt.xlabel('Epoch')
+  plt.ylabel('Error [MPG]')
+  plt.legend()
+  plt.grid(True)
+
+plot_loss(history)
+
+test_results = {}
+
+test_results['horsepower_model'] = horsepower_model.evaluate(
+    test_features['Horsepower'],
+    test_labels, verbose=0)
+
+x = tf.linspace(0.0, 250, 251)
+y = horsepower_model.predict(x)
+
+def plot_horsepower(x, y):
+  plt.scatter(train_features['Horsepower'], train_labels, label='Data')
+  plt.plot(x, y, color='k', label='Predictions')
+  plt.xlabel('Horsepower')
+  plt.ylabel('MPG')
+  plt.legend()
+
+plot_horsepower(x, y)
+
+# Linear regression with multiple inputs
+
+linear_model = tf.keras.Sequential([
+    normalizer,
+    layers.Dense(units=1)
+])
+
+linear_model.predict(train_features[:10].astype(np.int_))
+
+linear_model.layers[1].kernel
+
+linear_model.compile(
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.1),
+    loss='mean_absolute_error')
+
+history = linear_model.fit(
+    train_features.astype(np.int_),
+    train_labels,
+    epochs=100,
+    # Suppress logging.
+    verbose=0,
+    # Calculate validation results on 20% of the training data.
+    validation_split = 0.2)
+
+plot_loss(history)
+
+test_results['linear_model'] = linear_model.evaluate(
+    test_features.astype(np.int_), test_labels, verbose=0)
+# TODO Fix: Incompatible shapes: [32,9] vs. [1,10]
 
 
 
