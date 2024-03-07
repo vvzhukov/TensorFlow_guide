@@ -2,6 +2,16 @@
 # Based on official guide from Google with extra comments
 # https://www.tensorflow.org/tutorials/keras/overfit_and_underfit
 
+# The most common ways to prevent overfitting in neural networks:
+# - More training data
+# - Reduce the capacity of the network
+# - Weight regularization
+# - Dropout
+
+# - Data augmentation [not covered here]
+# - Batch normalization [not covered here]
+
+
 import tensorflow as tf
 
 from tensorflow.keras import layers
@@ -184,3 +194,112 @@ plt.xlabel("Epochs [Log Scale]")
 plt.show()
 
 
+# Strategies to prevent overfitting
+shutil.rmtree(logdir/'regularizers/Tiny', ignore_errors=True)
+shutil.copytree(logdir/'sizes/Tiny', logdir/'regularizers/Tiny')
+
+regularizer_histories = {}
+regularizer_histories['Tiny'] = size_histories['Tiny']
+
+# Weight regularization
+# L1 regularization, cost added is proportional to the absolute value of the weights coefficients.
+# L2 regularization, where the cost added is proportional to the square of the value of the weights coefficients
+#   (weight decay in the context of neural networks)
+
+l2_model = tf.keras.Sequential([
+    layers.Dense(512, activation='elu',
+                 kernel_regularizer=regularizers.l2(0.001),
+                 input_shape=(FEATURES,)),
+    layers.Dense(512, activation='elu',
+                 kernel_regularizer=regularizers.l2(0.001)),
+    layers.Dense(512, activation='elu',
+                 kernel_regularizer=regularizers.l2(0.001)),
+    layers.Dense(512, activation='elu',
+                 kernel_regularizer=regularizers.l2(0.001)),
+    layers.Dense(1)
+])
+
+regularizer_histories['l2'] = compile_and_fit(l2_model, "regularizers/l2")
+
+plotter.plot(regularizer_histories)
+plt.ylim([0.5, 0.7])
+plt.show()
+# "L2" regularized model is now much more competitive with the "Tiny" model.
+# This "L2" model is also much more resistant to overfitting than the "Large"
+
+# If you are writing your own training loop, then you need to be sure to ask the model for its regularization losses.
+
+result = l2_model(features)
+regularization_loss=tf.add_n(l2_model.losses)
+
+# This implementation works by adding the weight penalties to the model's loss, and then applying a standard
+#   optimization procedure after that.
+
+# Add dropout
+# Dropout, applied to a layer, consists of randomly "dropping out" (i.e. set to zero) a number of output
+#   features of the layer during training.
+# Dropout rate usually in [0.2, 0.5]
+
+dropout_model = tf.keras.Sequential([
+    layers.Dense(512, activation='elu', input_shape=(FEATURES,)),
+    layers.Dropout(0.5),
+    layers.Dense(512, activation='elu'),
+    layers.Dropout(0.5),
+    layers.Dense(512, activation='elu'),
+    layers.Dropout(0.5),
+    layers.Dense(512, activation='elu'),
+    layers.Dropout(0.5),
+    layers.Dense(1)
+])
+
+regularizer_histories['dropout'] = compile_and_fit(dropout_model, "regularizers/dropout")
+
+plotter.plot(regularizer_histories)
+plt.ylim([0.5, 0.7])
+
+
+#  L2 + dropout
+
+combined_model = tf.keras.Sequential([
+    layers.Dense(512, kernel_regularizer=regularizers.l2(0.0001),
+                 activation='elu', input_shape=(FEATURES,)),
+    layers.Dropout(0.5),
+    layers.Dense(512, kernel_regularizer=regularizers.l2(0.0001),
+                 activation='elu'),
+    layers.Dropout(0.5),
+    layers.Dense(512, kernel_regularizer=regularizers.l2(0.0001),
+                 activation='elu'),
+    layers.Dropout(0.5),
+    layers.Dense(512, kernel_regularizer=regularizers.l2(0.0001),
+                 activation='elu'),
+    layers.Dropout(0.5),
+    layers.Dense(1)
+])
+
+regularizer_histories['combined'] = compile_and_fit(combined_model, "regularizers/combined")
+
+plotter.plot(regularizer_histories)
+plt.ylim([0.5, 0.7])
+
+
+# MIT License
+#
+# Copyright (c) 2017 François Chollet
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
