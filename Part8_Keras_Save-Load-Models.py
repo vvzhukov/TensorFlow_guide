@@ -50,11 +50,21 @@ model.fit(train_images,
           validation_data=(test_images, test_labels),
           callbacks=[cp_callback])  # Pass callback to training
 
-# This may generate warnings related to saving the state of the optimizer.
-# These warnings (and similar warnings throughout this notebook)
-# are in place to discourage outdated usage, and can be ignored.
+os.listdir(checkpoint_dir)
+# Rebuild a fresh, untrained model and evaluate it on the test set
+# Create a basic model instance
+model = create_model()
 
+# Evaluate the model
+loss, acc = model.evaluate(test_images, test_labels, verbose=2)
+print("Untrained model, accuracy: {:5.2f}%".format(100 * acc))
 
+# Load the weights from the checkpoint and re-evaluate:
+model.load_weights(checkpoint_path)
+
+# Re-evaluate the model
+loss, acc = model.evaluate(test_images, test_labels, verbose=2)
+print("Restored model, accuracy: {:5.2f}%".format(100 * acc))
 
 
 # MIT License
